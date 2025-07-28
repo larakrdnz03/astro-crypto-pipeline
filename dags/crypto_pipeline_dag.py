@@ -6,7 +6,7 @@ import requests
 from sqlalchemy import create_engine
 import ta
 
-NEON_DB_URL = "postgresql://<username>:<password>@<host>:5432/<dbname>?sslmode=require"
+NEON_DB_URL = "postgresql://neondb_owner:npg_IRiYav7TKA1Z@ep-divine-mouse-a29jty4e-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
 default_args = {
     'owner': 'airflow',
