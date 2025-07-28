@@ -16,10 +16,12 @@ default_args = {
 }
 
 def fetch_process_store():
-    url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100"
+    print("🚀 Starting data fetch...")
+    url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=5m&limit=100"
     response = requests.get(url)
+    print(f"✅ API status: {response.status_code}")
+    
     data = response.json()
-
     df = pd.DataFrame(data, columns=[
         'open_time', 'open', 'high', 'low', 'close', 'volume',
         '_1', '_2', '_3', '_4', '_5', '_6'
@@ -27,6 +29,10 @@ def fetch_process_store():
     df = df[['open_time', 'open', 'high', 'low', 'close', 'volume']]
     df = df.astype(float)
     df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
+
+    if df.empty:
+        print("❗ DataFrame is empty. Exiting task.")
+        return
 
     # SMA
     df['sma'] = df['close'].rolling(window=14).mean()
@@ -43,13 +49,22 @@ def fetch_process_store():
     rs = avg_gain / avg_loss
     df['rsi'] = 100 - (100 / (1 + rs))
 
-    engine = create_engine(NEON_DB_URL)
-    df.to_sql('btc_usdt_technical', engine, if_exists='append', index=False)
+    # Sadece son 1 satırı yazdır ve yaz
+    last_row = df.iloc[[-1]]
+    print("Last row to be written:")
+    print(last_row)
+
+    try:
+        engine = create_engine(NEON_DB_URL)
+        last_row.to_sql('btc_usdt_technical', engine, if_exists='append', index=False)
+        print("Last row successfully written to Neon DB.")
+    except Exception as e:
+        print(f"Failed to write to Neon DB: {e}")
 
 with DAG(
     dag_id='crypto_pipeline_dag',
     default_args=default_args,
-    schedule='*/5 * * * *',
+    schedule='*/5 * * * *',  # ← every 5 minutes
     catchup=False
 ) as dag:
 
