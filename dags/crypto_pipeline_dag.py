@@ -16,7 +16,7 @@ default_args = {
 }
 
 def fetch_process_store():
-    url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
+    url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100"
     response = requests.get(url)
     data = response.json()
 
@@ -49,7 +49,7 @@ def fetch_process_store():
 with DAG(
     dag_id='crypto_pipeline_dag',
     default_args=default_args,
-    schedule='@hourly',
+    schedule='*/5 * * * *',
     catchup=False
 ) as dag:
 
