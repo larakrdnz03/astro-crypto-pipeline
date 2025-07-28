@@ -1,0 +1,9 @@
+project:
+    name: crypto-pipeline
+deployments: 
+  local:
+    astro_runtime_version: 9.0.0
+    ports:
+      webserver: 8088
+      postgres: 5433
+
