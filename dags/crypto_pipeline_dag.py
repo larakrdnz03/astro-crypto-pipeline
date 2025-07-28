@@ -2,9 +2,9 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import pandas as pd
+import numpy as np
 import requests
 from sqlalchemy import create_engine
-import ta
 
 NEON_DB_URL = "postgresql://neondb_owner:npg_IRiYav7TKA1Z@ep-divine-mouse-a29jty4e-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
@@ -14,13 +14,6 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
 }
-
-dag = DAG(
-    'crypto_pipeline_dag',
-    default_args=default_args,
-    schedule_interval='@hourly',
-    catchup=False
-)
 
 def fetch_process_store():
     url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
@@ -35,18 +28,43 @@ def fetch_process_store():
     df = df.astype(float)
     df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
 
-    df['sma'] = ta.trend.sma_indicator(df['close'], window=14)
-    df['ema'] = ta.trend.ema_indicator(df['close'], window=14)
-    df['rsi'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
-    
+    # SMA
+    df['sma'] = df['close'].rolling(window=14).mean()
+
+    # EMA
+    df['ema'] = df['close'].ewm(span=14, adjust=False).mean()
+
+    # RSI
+    delta = df['close'].diff()
+    gain = np.where(delta > 0, delta, 0)
+    loss = np.where(delta < 0, -delta, 0)
+    avg_gain = pd.Series(gain).rolling(window=14).mean()
+    avg_loss = pd.Series(loss).rolling(window=14).mean()
+    rs = avg_gain / avg_loss
+    df['rsi'] = 100 - (100 / (1 + rs))
+
     engine = create_engine(NEON_DB_URL)
     df.to_sql('btc_usdt_technical', engine, if_exists='append', index=False)
 
-with dag:
+with DAG(
+    dag_id='crypto_pipeline_dag',
+    default_args=default_args,
+    schedule='@hourly',
+    catchup=False
+) as dag:
+
     fetch_store = PythonOperator(
         task_id='fetch_process_store',
         python_callable=fetch_process_store
     )
+
+
+
+
+
+
+    
+
 
 
 
